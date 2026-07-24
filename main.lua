@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -10,6 +11,7 @@ local Camera = workspace.CurrentCamera
 -- Variables for Toggles
 local espEnabled = false
 local feature2Enabled = false
+local autoBlockEnabled = false
 
 -- Main GUI Container
 local ScreenGui = Instance.new("ScreenGui")
@@ -20,7 +22,7 @@ ScreenGui.ResetOnSpawn = false
 -- Main Frame (Draggable & Collapsible)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 180)
+MainFrame.Size = UDim2.new(0, 220, 0, 215)
 MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.BorderSizePixel = 0
@@ -77,7 +79,7 @@ ContentFrame.Parent = MainFrame
 -- Toggle 1 Button (ESP)
 local Toggle1 = Instance.new("TextButton")
 Toggle1.Size = UDim2.new(0, 200, 0, 35)
-Toggle1.Position = UDim2.new(0, 10, 0, 15)
+Toggle1.Position = UDim2.new(0, 10, 0, 10)
 Toggle1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 Toggle1.BorderSizePixel = 0
 Toggle1.Text = "ESP: OFF"
@@ -90,10 +92,10 @@ local Toggle1Corner = Instance.new("UICorner")
 Toggle1Corner.CornerRadius = UDim.new(0, 6)
 Toggle1Corner.Parent = Toggle1
 
--- Toggle 2 Button (Placeholder)
+-- Toggle 2 Button (Feature 2)
 local Toggle2 = Instance.new("TextButton")
 Toggle2.Size = UDim2.new(0, 200, 0, 35)
-Toggle2.Position = UDim2.new(0, 10, 0, 65)
+Toggle2.Position = UDim2.new(0, 10, 0, 55)
 Toggle2.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 Toggle2.BorderSizePixel = 0
 Toggle2.Text = "Feature 2: OFF"
@@ -106,6 +108,22 @@ local Toggle2Corner = Instance.new("UICorner")
 Toggle2Corner.CornerRadius = UDim.new(0, 6)
 Toggle2Corner.Parent = Toggle2
 
+-- Toggle 3 Button (Auto-Block)
+local Toggle3 = Instance.new("TextButton")
+Toggle3.Size = UDim2.new(0, 200, 0, 35)
+Toggle3.Position = UDim2.new(0, 10, 0, 100)
+Toggle3.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+Toggle3.BorderSizePixel = 0
+Toggle3.Text = "Auto-Block: OFF"
+Toggle3.TextColor3 = Color3.fromRGB(255, 100, 100)
+Toggle3.TextSize = 14
+Toggle3.Font = Enum.Font.SourceSansBold
+Toggle3.Parent = ContentFrame
+
+local Toggle3Corner = Instance.new("UICorner")
+Toggle3Corner.CornerRadius = UDim.new(0, 6)
+Toggle3Corner.Parent = Toggle3
+
 -- Collapse Logic
 local isCollapsed = false
 CollapseButton.MouseButton1Click:Connect(function()
@@ -115,12 +133,12 @@ CollapseButton.MouseButton1Click:Connect(function()
         MainFrame.Size = UDim2.new(0, 220, 0, 35)
         CollapseButton.Text = "+"
     else
-        MainFrame.Size = UDim2.new(0, 220, 0, 180)
+        MainFrame.Size = UDim2.new(0, 220, 0, 215)
         CollapseButton.Text = "-"
     end
 end)
 
--- Toggle 1 Logic (ESP)
+-- Toggle 1 Logic
 Toggle1.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -144,88 +162,25 @@ Toggle2.MouseButton1Click:Connect(function()
     end
 end)
 
--- ESP System Loop
-local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = "ESPFolder"
-ESPFolder.Parent = CoreGui
+-- Toggle 3 Logic
+Toggle3.MouseButton1Click:Connect(function()
+    autoBlockEnabled = not autoBlockEnabled
+    if autoBlockEnabled then
+        Toggle3.Text = "Auto-Block: ON"
+        Toggle3.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        Toggle3.Text = "Auto-Block: OFF"
+        Toggle3.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
 
-local function createESP(player)
-    if player == LocalPlayer then return end
-
-    local nameTag = Drawing.new("Text")
-    nameTag.Visible = false
-    nameTag.Center = true
-    nameTag.Outline = true
-    nameTag.Font = 2
-    nameTag.Size = 14
-    nameTag.Color = Color3.fromRGB(255, 255, 255)
-
-    local healthBackground = Drawing.new("Square")
-    healthBackground.Visible = false
-    healthBackground.Filled = true
-    healthBackground.Color = Color3.fromRGB(0, 0, 0)
-    healthBackground.Transparency = 0.5
-
-    local healthBar = Drawing.new("Square")
-    healthBar.Visible = false
-    healthBar.Filled = true
-    healthBar.Color = Color3.fromRGB(0, 255, 0)
-
-    RunService.RenderStepped:Connect(function()
-        if not espEnabled or not player.Parent or not player.Character then
-            nameTag.Visible = false
-            healthBackground.Visible = false
-            healthBar.Visible = false
-            return
-        end
-
-        local character = player.Character
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChild("Humanoid")
-
-        if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
-            nameTag.Visible = false
-            healthBackground.Visible = false
-            healthBar.Visible = false
-            return
-        end
-
-        local headPosition = humanoidRootPart.Position + Vector3.new(0, 3, 0)
-        local vector, onScreen = Camera:WorldToViewportPoint(headPosition)
-
-        if onScreen then
-            nameTag.Text = player.Name .. " [" .. math.floor(humanoid.Health) .. "]"
-            nameTag.Position = Vector2.new(vector.X, vector.Y)
-            nameTag.Visible = true
-
-            local barWidth = 40
-            local barHeight = 6
-            local barX = vector.X - (barWidth / 2)
-            local barY = vector.Y + 18
-
-            healthBackground.Size = Vector2.new(barWidth, barHeight)
-            healthBackground.Position = Vector2.new(barX, barY)
-            healthBackground.Visible = true
-
-            local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-            local currentWidth = (barWidth - 2) * healthPercent
-
-            healthBar.Size = Vector2.new(currentWidth, barHeight - 2)
-            healthBar.Position = Vector2.new(barX + 1, barY + 1)
-            healthBar.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
-            healthBar.Visible = true
-        else
-            nameTag.Visible = false
-            healthBackground.Visible = false
-            healthBar.Visible = false
-        end
-    end)
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
-    coroutine.wrap(createESP)(player)
-end
-
-Players.PlayerAdded:Connect(function(player)
-    coroutine.wrap(createESP)(player)
+-- Auto-Block Execution
+RunService.RenderStepped:Connect(function()
+    if autoBlockEnabled then
+        pcall(function()
+            VirtualUser:Button1Down(Vector2.new(0,0))
+            task.wait()
+            VirtualUser:Button1Up(Vector2.new(0,0))
+        end)
+    end
 end)
