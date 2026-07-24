@@ -3,7 +3,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -11,7 +11,7 @@ local Camera = workspace.CurrentCamera
 -- Variables for Toggles
 local espEnabled = false
 local feature2Enabled = false
-local autoBlockEnabled = false -- متغير الصد التلقائي
+local autoBlockEnabled = false
 
 -- Main GUI Container
 local ScreenGui = Instance.new("ScreenGui")
@@ -19,7 +19,7 @@ ScreenGui.Name = "CustomExploitMenu"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- Main Frame (Draggable & Collapsible) - كبرنا الحجم شوي عشان يكفي الزر الثالث
+-- Main Frame (Draggable & Collapsible)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 220, 0, 215)
@@ -76,7 +76,7 @@ ContentFrame.Position = UDim2.new(0, 0, 0, 35)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
--- Toggle 1 Button (ESP)
+-- Toggle 1 Button (ESP & Health Bars)
 local Toggle1 = Instance.new("TextButton")
 Toggle1.Size = UDim2.new(0, 200, 0, 35)
 Toggle1.Position = UDim2.new(0, 10, 0, 10)
@@ -108,7 +108,7 @@ local Toggle2Corner = Instance.new("UICorner")
 Toggle2Corner.CornerRadius = UDim.new(0, 6)
 Toggle2Corner.Parent = Toggle2
 
--- Toggle 3 Button (Auto-Block - الزر الجديد للصد التلقائي)
+-- Toggle 3 Button (Auto-Block)
 local Toggle3 = Instance.new("TextButton")
 Toggle3.Size = UDim2.new(0, 200, 0, 35)
 Toggle3.Position = UDim2.new(0, 10, 0, 100)
@@ -138,7 +138,19 @@ CollapseButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Toggle 1 Logic
+-- ESP & Health Bar Storage
+local espObjects = {}
+
+local function removeESP(player)
+    if espObjects[player] then
+        for _, obj in pairs(espObjects[player]) do
+            if obj then obj:Remove() end
+        end
+        espObjects[player] = nil
+    end
+end
+
+-- Toggle 1 Logic (ESP + Health)
 Toggle1.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
@@ -147,6 +159,61 @@ Toggle1.MouseButton1Click:Connect(function()
     else
         Toggle1.Text = "ESP: OFF"
         Toggle1.TextColor3 = Color3.fromRGB(255, 100, 100)
+        for _, player in pairs(Players:GetPlayers()) do
+            removeESP(player)
+        end
+    end
+end)
+
+-- Render ESP & Health Bars
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+                local char = player.Character
+                local hrp = char.HumanoidRootPart
+                local humanoid = char.Humanoid
+                
+                if not espObjects[player] then
+                    local box = Drawing.new("Square")
+                    box.Visible = false
+                    box.Color = Color3.fromRGB(255, 0, 0)
+                    box.Thickness = 1
+                    box.Filled = false
+                    
+                    local healthBar = Drawing.new("Line")
+                    healthBar.Visible = false
+                    healthBar.Color = Color3.fromRGB(0, 255, 0)
+                    healthBar.Thickness = 2
+                    
+                    espObjects[player] = {Box = box, Health = healthBar}
+                end
+                
+                local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local box = espObjects[player].Box
+                    local healthBar = espObjects[player].Health
+                    
+                    local sizeX = 2000 / vector.Z
+                    local sizeY = 3500 / vector.Z
+                    
+                    box.Size = Vector2.new(sizeX, sizeY)
+                    box.Position = Vector2.new(vector.X - sizeX / 2, vector.Y - sizeY / 2)
+                    box.Visible = true
+                    
+                    -- بار الدم
+                    local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    healthBar.From = Vector2.new(box.Position.X - 6, box.Position.Y + sizeY)
+                    healthBar.To = Vector2.new(box.Position.X - 6, box.Position.Y + sizeY - (sizeY * healthPercent))
+                    healthBar.Visible = true
+                else
+                    espObjects[player].Box.Visible = false
+                    espObjects[player].Health.Visible = false
+                end
+            else
+                removeESP(player)
+            end
+        end
     end
 end)
 
@@ -174,13 +241,13 @@ Toggle3.MouseButton1Click:Connect(function()
     end
 end)
 
--- Auto-Block Execution Loop
+-- Auto-Block Loop (محاكاة ضغطة زر الفريمل/الصد F)
 RunService.RenderStepped:Connect(function()
     if autoBlockEnabled then
         pcall(function()
-            VirtualUser:Button1Down(Vector2.new(0,0))
-            task.wait()
-            VirtualUser:Button1Up(Vector2.new(0,0))
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+            task.wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
         end)
     end
 end)
